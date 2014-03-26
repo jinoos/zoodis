@@ -4,6 +4,9 @@
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#define HAVE_DLFCN_H 1
+
 /* Define to 1 if you have the `fork' function. */
 #define HAVE_FORK 1
 
@@ -14,7 +17,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `zookeeper_mt' library (-lzookeeper_mt). */
-#define HAVE_LIBZOOKEEPER_MT 1
+/* #undef HAVE_LIBZOOKEEPER_MT */
 
 /* Define to 1 if your system has a GNU libc compatible `malloc' function, and
    to 0 otherwise. */
@@ -75,11 +78,18 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Define to 1 if you have the <zookeeper/zookeeper.h> header file. */
-#define HAVE_ZOOKEEPER_ZOOKEEPER_H 1
+/* #undef HAVE_ZOOKEEPER_ZOOKEEPER_H */
 
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
 #define LSTAT_FOLLOWS_SLASHED_SYMLINK 1
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#define LT_OBJDIR ".libs/"
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+/* #undef NO_MINUS_C_MINUS_O */
 
 /* Name of package */
 #define PACKAGE "hello"

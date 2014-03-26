@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 {
     signal(SIGCHLD, signal_sigchld);
     signal(SIGINT, signal_sigint);
+    signal(SIGTERM, signal_sigint);
     signal(SIGTSTP, signal_sigint);
     signal(SIGHUP, signal_sigint);
 
@@ -167,16 +168,69 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void zu_connected(zhandle_t *zh, int type, int state, const char *path, void *data)
+void zu_con_watcher(zhandle_t *zh, int type, int state, const char *path, void *data)
 {
     struct zoodis *z = (struct zoodis*) data;
-    z->zoo_stat = ZOO_STAT_CONNECTED;
-    log_msg("Zookeeper: Connected.");
+    log_msg("Zookeeper: Connection status changed. type:%d state:%d", type, state);
+
+    if(type == ZOO_CREATED_EVENT)
+    {
+        log_msg("Zookeeper: - TYPE : ZOO_CREATED_EVENT:");
+    }else if(type == ZOO_DELETED_EVENT)
+    {
+        log_msg("Zookeeper: - TYPE : ZOO_DELETED_EVENT");
+    }else if(type == ZOO_CHANGED_EVENT)
+    {
+        log_msg("Zookeeper: - TYPE : ZOO_CHANGED_EVENT");
+    }else if(type == ZOO_CHILD_EVENT)
+    {
+        log_msg("Zookeeper: - TYPE : ZOO_CHILD_EVENT");
+    }else if(type == ZOO_SESSION_EVENT)
+    {
+        log_msg("Zookeeper: - TYPE : ZOO_SESSION_EVENT");
+    }else if(type == ZOO_NOTWATCHING_EVENT)
+    {
+        log_msg("Zookeeper: - TYPE : ZOO_NOTWATCHING_EVENT");
+    }else
+    {
+        log_msg("Zookeeper: - TYPE : UNKNOWN %d", type);
+    }
+
+    if(state == ZOO_EXPIRED_SESSION_STATE)
+    {
+        log_msg("Zookeeper: - STATE : ZOO_EXPIRED_SESSION_STATE");
+    }
+    else if(state == ZOO_AUTH_FAILED_STATE)
+    {
+        log_msg("Zookeeper: - STATE : ZOO_AUTH_FAILED_STATE");
+    }
+    else if(state == ZOO_CONNECTING_STATE)
+    {
+        log_msg("Zookeeper: - STATE : ZOO_CONNECTING_STATE");
+    }
+    else if(state == ZOO_ASSOCIATING_STATE)
+    {
+        log_msg("Zookeeper: - STATE : ZOO_ASSOCIATING_STATE");
+    }
+    else if(state == ZOO_CONNECTED_STATE)
+    {
+        log_msg("Zookeeper: - STATE : ZOO_CONNECTED_STATE");
+    }
+    else
+    {
+        log_msg("Zookeeper: - STATE : UNKNOWN %d", state);
+    }
+
+    if(state == ZOO_CONNECTED_STATE)
+    {
+        log_msg("Zookeeper: connected.");
+        z->zoo_stat = ZOO_STAT_CONNECTED;
+    }
 }
 
 enum zoo_res zu_connect(struct zoodis *z)
 {
-    zhandle_t *zh = zookeeper_init(z->zoo_host->data, zu_connected, z->zoo_timeout, z->zid, z, 0);
+    zhandle_t *zh = zookeeper_init(z->zoo_host->data, zu_con_watcher, z->zoo_timeout, z->zid, z, 0);
     zoodis.zoo_stat = ZOO_STAT_CONNECTIONG;
 
     log_msg("Zookeeper: Trying to connect to zookeeper %s", z->zoo_host->data);
@@ -358,30 +412,48 @@ void zu_return_print(const char *f, int l, int ret)
 enum zoo_res zu_create_ephemeral(struct zoodis *z)
 {
     int res;
-    char buffer[512]; // no reason, added due to some of example, need to be done.
-    int buffer_len;
+    int bufsize = 512;
+    char buffer[bufsize]; // no reason, added due to some of example, need to be done.
+    int buffer_len = bufsize;
+    memset(buffer, 0x00, bufsize);
 
     res = zoo_get(z->zh, z->zoo_nodepath->data, 0, buffer, &buffer_len, 0);
 
-    if(res != ZOK && res != ZNONODE)
-    {
-        ZU_RETURN_PRINT(res);
-        // exit(-1);
-    }
-
     if(res == ZOK)
     {
-        if(strncmp(z->zoo_nodedata->data, buffer, z->zoo_nodedata->len) != 0)
+        if(buffer_len == z->zoo_nodedata->len && strncmp(z->zoo_nodedata->data, buffer, z->zoo_nodedata->len) == 0)
+        {
+            return ZOO_RES_OK;
+        }else
         {
             zu_remove_ephemeral(z);
         }
+    }else if(res != ZOK && res != ZNONODE)
+    {
+        ZU_RETURN_PRINT(res);
+        if(res == ZINVALIDSTATE)
+        {
+            zookeeper_close(z->zh);
+            zoodis.zoo_stat = ZOO_STAT_NOT_CONNECTED;
+            z->zid = NULL;
+            log_warn("Zookeeper: error, trying to re-connect.");
+            zu_connect(z);
+        }
+        // exit(-1);
     }
 
     res = zoo_create(z->zh, z->zoo_nodepath->data, z->zoo_nodedata->data, strlen(z->zoo_nodedata->data), &ZOO_READ_ACL_UNSAFE, ZOO_EPHEMERAL, buffer, sizeof(buffer)-1);
     if(res != ZOK)
     {
         ZU_RETURN_PRINT(res);
-        // exit(-1);
+        if(res == ZINVALIDSTATE)
+        {
+            zookeeper_close(z->zh);
+            zoodis.zoo_stat = ZOO_STAT_NOT_CONNECTED;
+            z->zid = NULL;
+            log_warn("Zookeeper: error, trying to re-connect.");
+            zu_connect(z);
+        }
     }
 
     return ZOO_RES_OK;
@@ -396,6 +468,14 @@ enum zoo_res zu_remove_ephemeral(struct zoodis *z)
     if(res != ZOK && res != ZNONODE)
     {
         ZU_RETURN_PRINT(res);
+        if(res == ZINVALIDSTATE)
+        {
+            zookeeper_close(z->zh);
+            zoodis.zoo_stat = ZOO_STAT_NOT_CONNECTED;
+            z->zid = NULL;
+            log_warn("Zookeeper: error, trying to re-connect.");
+            zu_connect(z);
+        }
         //exit(-1);
     }
 
@@ -672,11 +752,12 @@ void redis_kill()
     if(zoodis.redis_pid != 0)
     {
         log_msg("Redis: killing daemon. PID:%d", zoodis.redis_pid);
-        signal(SIGCHLD, SIG_IGN);
-        kill(zoodis.redis_pid, SIGINT);
+        kill(zoodis.redis_pid, SIGTERM);
         zoodis.redis_stat = REDIS_STAT_KILLING;
-        int stat;
-        waitpid(zoodis.redis_pid, &stat, WNOHANG);
+        int stat, pid;
+        pid = waitpid(zoodis.redis_pid, &stat, WNOHANG);
+        zu_remove_ephemeral(&zoodis);
+        zoodis.redis_stat = REDIS_STAT_NONE;
         log_msg("Redis: down.");
         zoodis.redis_pid = 0;
         signal(SIGCHLD, signal_sigchld);
@@ -688,7 +769,6 @@ void signal_sigint(int sig)
     signal(SIGCHLD, SIG_IGN);
     log_debug("Signal: Received shutdown singal, NO:%d", sig);
     log_msg("Suspending zoodis,", sig);
-    sleep(1);
     zoodis.keepalive = 0;
     if(zoodis.redis_stat == REDIS_STAT_EXECUTED ||
             zoodis.redis_stat == REDIS_STAT_OK ||
@@ -801,7 +881,7 @@ int redis_health_check()
             }else
             {
                 utime_t elapsedTime = etime - stime;
-                log_msg("Redis: checked PONG successfully. Elapsed %"PRIu64" usec", elapsedTime);
+                log_info("Redis: checked PONG successfully. Elapsed %"PRIu64" usec", elapsedTime);
                 return 1;
             }
         }

@@ -105,7 +105,7 @@ struct mstr* check_zoo_nodedata(char *optarg);
 int check_zoo_options(struct zoodis *zoodis);
 int check_option_int(char *optarg, int def);
 
-void zu_connected(zhandle_t *zh, int type, int state, const char *path, void *data);
+void zu_con_watcher(zhandle_t *zh, int type, int state, const char *path, void *data);
 void zu_set_log_stream(FILE *fd);
 void zu_set_log_level(int level);
 void zu_return_print(const char *f, int l, int ret);

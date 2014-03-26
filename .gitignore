@@ -16,6 +16,8 @@ Makefile.in
 /missing
 /stamp-h1
 
+# build directory
+.deps/*
 
 ### C++ ###
 # Compiled Object files
@@ -39,3 +41,7 @@ Makefile.in
 *.exe
 *.out
 *.app
+
+# vi swap
+.*.swp
+.*.swo
