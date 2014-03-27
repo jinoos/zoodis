@@ -2,7 +2,7 @@
 
 `Zoo`keeper + Re`dis`
 
-Watching redis server and tracing stats on zookeeper with ephemeral node. 
+Watching Redis server and tracing stats on Zookeeper with ephemeral node. 
 
 ## INSTALL
 
@@ -40,9 +40,15 @@ Regarding
 - Zookeeper connection hostname is `192.168.1.2:2181`
 - Redis installed /path/redis and configured port 6379 on same machine
 
-Regular usage.
+Execute Redis server with `/path/conf/redis.conf` and Zoodis will ping test via port `6379`
 
-    ]$ cd /usr/local/zoodis/bin
+    ]$ ./zoodis \
+          --redis-bin=/path/bin/redis-server \
+          --redis-conf=/path/conf/redis.conf \
+          --redis-port=6379
+
+With Zookeeper tracing. 
+
     ]$ ./zoodis \
           --redis-bin=/path/bin/redis-server \
           --redis-conf=/path/conf/redis.conf \
@@ -51,7 +57,18 @@ Regular usage.
           --zoo-path=/Redis \
           --zoo-nodename=node-1
 
-then you can see Zookeeper node in /Redis/node-1 when redis server is working well.
+then, you can see Zookeeper node in /Redis/node-1 when redis server is working well.
 
-`--redis-ping-interval` can set interval(seconds) between each ping tests to redis server.
-`--pid-file`
+If you want to keep Redis server alive, use `--keepalive` option as below, Zoodis keep in touch via the port and starting it up when Redis dead.
+
+    ]$ ./zoodis \
+          --redis-bin=/path/bin/redis-server \
+          --redis-conf=/path/conf/redis.conf \
+          --redis-port=6379 \
+          --keepalive
+
+Zoodis watchs Redis two ways, PID monitoring and [PING](http://redis.io/commands/ping) command test. When Zoodis do restart Redis when recieved SIGCHLD signal. And if reached fail count to `MAX_FAIL_COUNT` continuously (`TODO`:--redis-max-fail-count), then kill Redis process and restart.  
+
+### Options
+
+Please use `--help`, and see other options.
