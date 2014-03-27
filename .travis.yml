@@ -1,3 +1,6 @@
+language: c
 compiler:
   - clang
   - gcc
+install: apt-get install libzookeeper-mt-dev libzookeeper-mt2
+script: ./configure && make && make install
