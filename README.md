@@ -67,8 +67,12 @@ If you want to keep Redis server alive, use `--keepalive` option as below, Zoodi
           --redis-port=6379 \
           --keepalive
 
-Zoodis watchs Redis two ways, PID monitoring and [PING](http://redis.io/commands/ping) command test. When Zoodis do restart Redis when recieved SIGCHLD signal. And if reached fail count to `MAX_FAIL_COUNT` continuously (`TODO`:--redis-max-fail-count), then kill Redis process and restart.  
+Zoodis watchs Redis two ways, PID monitoring and [PING](http://redis.io/commands/ping) command test. When Zoodis do restart Redis when recieved SIGCHLD signal. And if reached fail count to `MAX_FAIL_COUNT`(default:2) continuously (`TODO`:--redis-max-fail-count), then kill Redis process and restart.  
 
 ### Options
 
 Please use `--help`, and see other options.
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/jinoos/zoodis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
