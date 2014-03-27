@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "zoodis.h"
 #include "version.h"
@@ -18,11 +19,13 @@ int main(int argc, char *argv[])
 {
     signal(SIGCHLD, signal_sigchld);
     signal(SIGINT, signal_sigint);
+    signal(SIGPIPE, signal_sigint);
     signal(SIGTERM, signal_sigint);
     signal(SIGTSTP, signal_sigint);
     signal(SIGHUP, signal_sigint);
 
-    log_level(_LOG_DEBUG);
+    //log_level(_LOG_DEBUG);
+    log_msg("Start zoodis.");
 
     zoodis.keepalive_interval           = DEFAULT_KEEPALIVE_INTERVAL;
 
@@ -35,6 +38,7 @@ int main(int argc, char *argv[])
     zoodis.redis_pong_timeout_sec       = DEFAULT_REDIS_PONG_TIMEOUT_SEC;
     zoodis.redis_pong_timeout_usec      = DEFAULT_REDIS_PONG_TIMEOUT_USEC;
     zoodis.redis_max_fail_count         = DEFAULT_REDIS_MAX_FAIL_COUNT;
+    zoodis.pid_file                     = NULL;
 
     zoodis.redis_stat = REDIS_STAT_NONE;
 
@@ -43,6 +47,7 @@ int main(int argc, char *argv[])
         {"help",                no_argument,        0,  'h'},
         {"version",             no_argument,        0,  'v'},
         {"log-level",           required_argument,  0,  'l'},
+        {"pid-file",            required_argument,  0,  'f'},
         {"keepalive",           no_argument,        0,  'k'},
         {"keepalive-interval",  required_argument,  0,  'i'},
         {"redis-bin",           required_argument,  0,  'b'},
@@ -92,6 +97,9 @@ int main(int argc, char *argv[])
                 zoodis.keepalive = 1;
                 break;
 
+            case 'f':
+                zoodis.pid_file = check_pid_file(optarg);
+
             case 'i':
                 zoodis.keepalive_interval = check_option_int(optarg, DEFAULT_KEEPALIVE_INTERVAL);
                 break;
@@ -133,7 +141,7 @@ int main(int argc, char *argv[])
                 break;
 
             default:
-                exit(-1);
+                exit_proc(-1);
         }
     }
 
@@ -152,7 +160,7 @@ int main(int argc, char *argv[])
         zres = zu_connect(&zoodis);
         if(zres != ZOO_RES_OK)
         {
-            exit(-1);
+            exit_proc(-1);
         }
     }
 
@@ -171,59 +179,11 @@ int main(int argc, char *argv[])
 void zu_con_watcher(zhandle_t *zh, int type, int state, const char *path, void *data)
 {
     struct zoodis *z = (struct zoodis*) data;
-    log_msg("Zookeeper: Connection status changed. type:%d state:%d", type, state);
-
-    if(type == ZOO_CREATED_EVENT)
-    {
-        log_msg("Zookeeper: - TYPE : ZOO_CREATED_EVENT:");
-    }else if(type == ZOO_DELETED_EVENT)
-    {
-        log_msg("Zookeeper: - TYPE : ZOO_DELETED_EVENT");
-    }else if(type == ZOO_CHANGED_EVENT)
-    {
-        log_msg("Zookeeper: - TYPE : ZOO_CHANGED_EVENT");
-    }else if(type == ZOO_CHILD_EVENT)
-    {
-        log_msg("Zookeeper: - TYPE : ZOO_CHILD_EVENT");
-    }else if(type == ZOO_SESSION_EVENT)
-    {
-        log_msg("Zookeeper: - TYPE : ZOO_SESSION_EVENT");
-    }else if(type == ZOO_NOTWATCHING_EVENT)
-    {
-        log_msg("Zookeeper: - TYPE : ZOO_NOTWATCHING_EVENT");
-    }else
-    {
-        log_msg("Zookeeper: - TYPE : UNKNOWN %d", type);
-    }
-
-    if(state == ZOO_EXPIRED_SESSION_STATE)
-    {
-        log_msg("Zookeeper: - STATE : ZOO_EXPIRED_SESSION_STATE");
-    }
-    else if(state == ZOO_AUTH_FAILED_STATE)
-    {
-        log_msg("Zookeeper: - STATE : ZOO_AUTH_FAILED_STATE");
-    }
-    else if(state == ZOO_CONNECTING_STATE)
-    {
-        log_msg("Zookeeper: - STATE : ZOO_CONNECTING_STATE");
-    }
-    else if(state == ZOO_ASSOCIATING_STATE)
-    {
-        log_msg("Zookeeper: - STATE : ZOO_ASSOCIATING_STATE");
-    }
-    else if(state == ZOO_CONNECTED_STATE)
-    {
-        log_msg("Zookeeper: - STATE : ZOO_CONNECTED_STATE");
-    }
-    else
-    {
-        log_msg("Zookeeper: - STATE : UNKNOWN %d", state);
-    }
+    log_info("Zookeeper: Connection status changed. type:%d state:%d", type, state);
 
     if(state == ZOO_CONNECTED_STATE)
     {
-        log_msg("Zookeeper: connected.");
+        log_info("Zookeeper: connected.");
         z->zoo_stat = ZOO_STAT_CONNECTED;
     }
 }
@@ -233,7 +193,7 @@ enum zoo_res zu_connect(struct zoodis *z)
     zhandle_t *zh = zookeeper_init(z->zoo_host->data, zu_con_watcher, z->zoo_timeout, z->zid, z, 0);
     zoodis.zoo_stat = ZOO_STAT_CONNECTIONG;
 
-    log_msg("Zookeeper: Trying to connect to zookeeper %s", z->zoo_host->data);
+    log_info("Zookeeper: Trying to connect to zookeeper %s", z->zoo_host->data);
 
     if(!zh)
     {
@@ -439,7 +399,7 @@ enum zoo_res zu_create_ephemeral(struct zoodis *z)
             log_warn("Zookeeper: error, trying to re-connect.");
             zu_connect(z);
         }
-        // exit(-1);
+        // exit_proc(-1);
     }
 
     res = zoo_create(z->zh, z->zoo_nodepath->data, z->zoo_nodedata->data, strlen(z->zoo_nodedata->data), &ZOO_READ_ACL_UNSAFE, ZOO_EPHEMERAL, buffer, sizeof(buffer)-1);
@@ -476,7 +436,7 @@ enum zoo_res zu_remove_ephemeral(struct zoodis *z)
             log_warn("Zookeeper: error, trying to re-connect.");
             zu_connect(z);
         }
-        //exit(-1);
+        //exit_proc(-1);
     }
 
     return ZOO_RES_OK;
@@ -490,7 +450,7 @@ struct mstr* check_redis_bin(char *optarg)
     if(strlen(optarg) == 0)
     {
         log_err("path of redis-bin option must not be empty.");
-        exit(-1);
+        exit_proc(-1);
     }
 
     res = lstat(optarg, &stat_bin);
@@ -499,14 +459,14 @@ struct mstr* check_redis_bin(char *optarg)
     if(res < 0)
     {
         log_err("%s, %s\n", strerror(errno), optarg);
-        exit(-1);
+        exit_proc(-1);
     }
 
     // check regular file
     if(!S_ISREG(stat_bin.st_mode))
     {
         log_err("%s is not a regular file.", optarg);
-        exit(-1);
+        exit_proc(-1);
     }
 
     // check executable or not
@@ -518,7 +478,8 @@ struct mstr* check_redis_bin(char *optarg)
     }else
     {
         log_err("%s is not an executable.", optarg);
-        exit(-1);
+        exit_proc(-1);
+        return NULL;
     }
 }
 
@@ -530,7 +491,7 @@ struct mstr* check_redis_conf(char *optarg)
     if(strlen(optarg) == 0)
     {
         log_err("path of redis-conf option must not be empty.");
-        exit(-1);
+        exit_proc(-1);
     }
 
     res = lstat(optarg, &stat_bin);
@@ -539,14 +500,14 @@ struct mstr* check_redis_conf(char *optarg)
     if(res < 0)
     {
         log_err("%s, %s", strerror(errno), optarg);
-        exit(-1);
+        exit_proc(-1);
     }
 
     // check regular file
     if(!S_ISREG(stat_bin.st_mode))
     {
         log_err("%s is not a regular file.", optarg);
-        exit(-1);
+        exit_proc(-1);
     }
 
     // check executable or not
@@ -558,7 +519,8 @@ struct mstr* check_redis_conf(char *optarg)
     }else
     {
         log_err("%s is not an readable.", optarg);
-        exit(-1);
+        exit_proc(-1);
+        return NULL;
     }
 }
 
@@ -626,7 +588,7 @@ int check_redis_options(struct zoodis *zoodis)
     if(zoodis->redis_bin == NULL || zoodis->redis_conf == NULL)
     {
         log_err("--redis-bin, --redis-conf are mandatory.");
-        exit(-1);
+        exit_proc(-1);
     }
 
     if(zoodis->redis_port == 0)
@@ -641,6 +603,46 @@ int check_redis_options(struct zoodis *zoodis)
     return 1;
 }
 
+const char* check_pid_file(const char *pid_file)
+{
+    int fd, res;
+    pid_t pid = getpid();
+    struct flock flock;
+
+
+    zoodis.pid_fp = fopen(pid_file, "r+");
+    if(zoodis.pid_fp == NULL)
+    {
+        zoodis.pid_fp = fopen(pid_file, "w");
+        if(zoodis.pid_fp == NULL)
+        {
+            log_err("Cannot open pid file %s, %s", pid_file, strerror(errno));
+            exit_proc(-1);
+        }
+    }
+
+    fd = fileno(zoodis.pid_fp);
+
+    memset(&flock, 0x00, sizeof(struct flock));
+    flock.l_type = F_WRLCK;
+
+    res = fcntl(fd, F_SETLK, &flock);
+    if(res < 0)
+    {
+        log_err("Another zoodis process is running. PID:%s", pid_file);
+        fclose(zoodis.pid_fp);
+        exit_proc(-1);
+    }
+
+    log_info("PID file %s", pid_file);
+
+    fseek(zoodis.pid_fp, 0L, SEEK_SET);
+    res = fprintf(zoodis.pid_fp, "%d", pid);
+    res = ftruncate(fd, (off_t)ftell(zoodis.pid_fp));
+    fflush(zoodis.pid_fp);
+    return pid_file;
+}
+
 int check_zoo_options(struct zoodis *zoodis)
 {
     if(zoodis->zoo_host != NULL || zoodis->zoo_path != NULL || zoodis->zoo_nodename != NULL)
@@ -648,7 +650,7 @@ int check_zoo_options(struct zoodis *zoodis)
         if(zoodis->zoo_host == NULL || zoodis->zoo_path == NULL || zoodis->zoo_nodename == NULL)
         {
             log_err("--zoo-host, --zoo-path and --zoo-nodename are mandatory for using zookeeper server.");
-            exit(-1);
+            exit_proc(-1);
         }
     }
 
@@ -657,7 +659,7 @@ int check_zoo_options(struct zoodis *zoodis)
         if(zoodis->zoo_host == NULL || zoodis->zoo_path == NULL || zoodis->zoo_nodename == NULL)
         {
             log_err("--zoo-host, --zoo-path and --zoo-nodename are mandatory for using zookeeper server.");
-            exit(-1);
+            exit_proc(-1);
         }
     }
 
@@ -689,7 +691,8 @@ void print_help(char **argv)
     printf("                    Configure port of redis.\n");
     printf("                    It's going to be used to health check.\n");
     printf("Options\n");
-    printf("    --keepalive     Keep continue to restart redis-server when it's down.\n");
+    printf("    --keepalive\n");
+    printf("                    Keep continue to restart redis-server when it's down.\n");
     printf("    --keepalive-interval=SECOND\n");
     printf("                    Restart interval time since catch down signal.\n");
     printf("                    If not set this, default is 1 second.\n");
@@ -708,6 +711,8 @@ void print_help(char **argv)
     printf("                    What data string in the zoo-nodename node.\n");
     printf("                    Default is \"1\"\n");
     printf("                    This option works with zoo-host and zoo-path option.\n");
+    printf("    --pid-file=PATH\n");
+    printf("                    Pid file path.\n");
     printf("    --log-level=[DEBUG|INFO|WARN|ERROR]\n");
     printf("                    Set logging level.\n");
     printf("                    Default is WARN\n");
@@ -727,7 +732,7 @@ void exec_redis()
     if(pid < 0)
     {
         log_err("Redis: Failed forming process, %s", strerror(errno));
-        exit(-1);
+        exit_proc(-1);
     }
 
     if(pid == 0)
@@ -740,7 +745,8 @@ void exec_redis()
     {
         zoodis.redis_pid = pid;
         zoodis.redis_stat = REDIS_STAT_EXECUTED;
-        log_msg("Redis: started redis daemon. PID:%d", pid);
+        log_info("Redis: started redis daemon.");
+        sleep(5);
         redis_health();
     }
 
@@ -751,14 +757,14 @@ void redis_kill()
 {
     if(zoodis.redis_pid != 0)
     {
-        log_msg("Redis: killing daemon. PID:%d", zoodis.redis_pid);
+        log_info("Redis: killing daemon. PID:%d", zoodis.redis_pid);
         kill(zoodis.redis_pid, SIGTERM);
         zoodis.redis_stat = REDIS_STAT_KILLING;
         int stat, pid;
         pid = waitpid(zoodis.redis_pid, &stat, WNOHANG);
         zu_remove_ephemeral(&zoodis);
         zoodis.redis_stat = REDIS_STAT_NONE;
-        log_msg("Redis: down.");
+        log_info("Redis: down.");
         zoodis.redis_pid = 0;
         signal(SIGCHLD, signal_sigchld);
     }
@@ -768,7 +774,7 @@ void signal_sigint(int sig)
 {
     signal(SIGCHLD, SIG_IGN);
     log_debug("Signal: Received shutdown singal, NO:%d", sig);
-    log_msg("Suspending zoodis,", sig);
+    log_info("Suspending zoodis,", sig);
     zoodis.keepalive = 0;
     if(zoodis.redis_stat == REDIS_STAT_EXECUTED ||
             zoodis.redis_stat == REDIS_STAT_OK ||
@@ -776,8 +782,7 @@ void signal_sigint(int sig)
     {
         redis_kill();
     }
-    log_msg("bye.");
-    exit(0);
+    exit_proc(0);
 }
 
 void signal_sigchld(int sig)
@@ -794,7 +799,7 @@ void signal_sigchld(int sig)
 
         if(!zoodis.keepalive)
         {
-            exit(1);
+            exit(0);
         }
 
         sleep(zoodis.keepalive_interval);
@@ -935,3 +940,11 @@ void redis_health()
     }
 }
 
+void exit_proc(int code)
+{
+    if(code == 0)
+    {
+        log_msg("Bye.");
+    }
+    exit(code);
+}

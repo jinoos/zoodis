@@ -90,6 +90,9 @@ struct zoodis
     zhandle_t           *zh;
     const clientid_t    *zid;
 
+    FILE *pid_fp;
+    const char *pid_file;
+
 };
 
 void print_version(char **argv);
@@ -117,6 +120,9 @@ void exec_redis();
 void signal_sigchld(int sig);
 void signal_sigint(int sig);
 void redis_health();
+
+const char* check_pid_file(const char *pid_file);
+void exit_proc(int code);
 
 #endif // _ZOODIS_H_
 
