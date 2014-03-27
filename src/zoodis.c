@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     signal(SIGTSTP, signal_sigint);
     signal(SIGHUP, signal_sigint);
 
-    //log_level(_LOG_DEBUG);
+    log_level(_LOG_DEBUG);
     log_msg("Start zoodis.");
 
     zoodis.keepalive_interval           = DEFAULT_KEEPALIVE_INTERVAL;
@@ -164,12 +164,13 @@ int main(int argc, char *argv[])
         }
     }
 
-    sleep(1);
-    while(zoodis.zoo_stat != ZOO_STAT_CONNECTED)
-    {
-        log_warn("Zookeeper: is not connected yet.");
-        sleep(zoodis.zoo_connect_wait_interval);
-    }
+//    sleep(1);
+//    while(zoodis.zoo_stat != ZOO_STAT_CONNECTED)
+//    if(zoodis.zoo_stat != ZOO_STAT_CONNECTED)
+//    {
+//        log_warn("Zookeeper: is not connected yet.");
+//        sleep(zoodis.zoo_connect_wait_interval);
+//    }
 
     exec_redis();
     redis_health();
@@ -366,6 +367,24 @@ void zu_return_print(const char *f, int l, int ret)
     default:
         log_err("%s(%d) Zookeeper: Unknown error(%d)", f, l, ret);
     }
+}
+
+enum zoo_res zu_ephemeral_update(struct zoodis *z)
+{
+    if(!zoodis.zookeeper)
+        return ZOO_RES_OK;
+
+    if(zoodis.zoo_stat != ZOO_STAT_CONNECTED)
+    {
+        log_err("Zookeeper: not connected yet. STAT:%d", zoodis.zoo_stat);
+        return ZOO_RES_ERROR;
+    }
+
+
+    if(zoodis.redis_stat == REDIS_STAT_OK)
+        return zu_create_ephemeral(z);
+    else
+        return zu_remove_ephemeral(z);
 }
 
 
@@ -746,7 +765,7 @@ void exec_redis()
         zoodis.redis_pid = pid;
         zoodis.redis_stat = REDIS_STAT_EXECUTED;
         log_info("Redis: started redis daemon.");
-        sleep(5);
+        sleep(DEFAULT_REDIS_SLEEP_AFTER_EXEC);
         redis_health();
     }
 
@@ -762,8 +781,8 @@ void redis_kill()
         zoodis.redis_stat = REDIS_STAT_KILLING;
         int stat, pid;
         pid = waitpid(zoodis.redis_pid, &stat, WNOHANG);
-        zu_remove_ephemeral(&zoodis);
         zoodis.redis_stat = REDIS_STAT_NONE;
+        zu_ephemeral_update(&zoodis);
         log_info("Redis: down.");
         zoodis.redis_pid = 0;
         signal(SIGCHLD, signal_sigchld);
@@ -792,14 +811,16 @@ void signal_sigchld(int sig)
     log_debug("Signal: received SIGCHLD PID:%d, REDIS_PID:%d", pid, zoodis.redis_pid);
     if(zoodis.redis_pid == pid)
     {
-        zu_remove_ephemeral(&zoodis);
+        close(zoodis.redis_sock);
+        zoodis.redis_sock = 0;
         zoodis.redis_stat = REDIS_STAT_NONE;
+        zu_ephemeral_update(&zoodis);
 
         log_err("Redis: daemon has been down. Please check redis log file.");
 
         if(!zoodis.keepalive)
         {
-            exit(0);
+            exit(-1);
         }
 
         sleep(zoodis.keepalive_interval);
@@ -867,13 +888,13 @@ int redis_health_check()
         etime = utime_time();
         if(res < 0)
         {
-            log_warn("Redis: pong message failed. %s", strerror(errno));
+            log_warn("Redis: test failed, %s", strerror(errno));
             close(zoodis.redis_sock);
             zoodis.redis_sock = 0;
             return 0;
         }else if(res == 0)
         {
-            log_warn("Redis: health check connection closed.");
+            log_warn("Redis: test failed, connection closed.");
             close(zoodis.redis_sock);
             zoodis.redis_sock = 0;
             return 0;
@@ -881,12 +902,12 @@ int redis_health_check()
         {
             if(strncmp(buf, DEFAULT_REDIS_PONG, 5) != 0)
             {
-                log_warn("Redis: responsed not PONG, %.*s", res, buf);
+                log_warn("Redis: test failed, responsed not PONG, %.*s", res, buf);
                 return 0;
             }else
             {
                 utime_t elapsedTime = etime - stime;
-                log_info("Redis: checked PONG successfully. Elapsed %"PRIu64" usec", elapsedTime);
+                log_info("Redis: test successed. Elapsed %"PRIu64" usec", elapsedTime);
                 return 1;
             }
         }
@@ -898,45 +919,43 @@ void redis_health()
     int res;
     while(1)
     {
-        sleep(zoodis.redis_ping_interval);
-
+        /*
         if(zoodis.zookeeper && zoodis.zoo_stat != ZOO_STAT_CONNECTED)
         {
             continue;
         }
+        */
 
         if(zoodis.redis_stat != REDIS_STAT_EXECUTED &&
                 zoodis.redis_stat != REDIS_STAT_OK &&
                 zoodis.redis_stat != REDIS_STAT_ABNORMAL)
         {
+            sleep(zoodis.redis_ping_interval);
             continue;
         }
 
         res = redis_health_check();
+
         if(!res)
         {
             // failed
             zoodis.redis_fail_count++;
             if(zoodis.redis_fail_count >= zoodis.redis_max_fail_count)
             {
-                redis_kill();
                 zoodis.redis_fail_count = 0;
                 zoodis.redis_stat = REDIS_STAT_ABNORMAL;
-                if(zoodis.zookeeper)
-                {
-                    zu_remove_ephemeral(&zoodis);
-                }
+                redis_kill();
+                zu_ephemeral_update(&zoodis);
+                exec_redis();
             }
         }else
         {
             // success
             zoodis.redis_fail_count = 0;
             zoodis.redis_stat = REDIS_STAT_OK;
-            if(zoodis.zookeeper)
-            {
-                zu_create_ephemeral(&zoodis);
-            }
+            zu_ephemeral_update(&zoodis);
         }
+        sleep(zoodis.redis_ping_interval);
     }
 }
 

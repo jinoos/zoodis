@@ -23,6 +23,8 @@
 #define DEFAULT_REDIS_PONG_TIMEOUT_USEC 0
 #define DEFAULT_REDIS_MAX_FAIL_COUNT    2
 
+#define DEFAULT_REDIS_SLEEP_AFTER_EXEC  5
+
 #define ZU_RETURN_PRINT(x)      zu_return_print(__FILE__, __LINE__, x)
 
 enum zoo_stat
@@ -123,6 +125,7 @@ void redis_health();
 
 const char* check_pid_file(const char *pid_file);
 void exit_proc(int code);
+enum zoo_res zu_ephemeral_update();
 
 #endif // _ZOODIS_H_
 
