@@ -2,7 +2,7 @@
 
 `Zoo`keeper + Re`dis`
 
-Watching Redis server and tracing stats on Zookeeper with ephemeral node. 
+Watchdog for Redis server and tracing stats on Zookeeper with ephemeral node. 
 
 ## INSTALL
 
