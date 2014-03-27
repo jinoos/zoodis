@@ -72,3 +72,7 @@ Zoodis watchs Redis two ways, PID monitoring and [PING](http://redis.io/commands
 ### Options
 
 Please use `--help`, and see other options.
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/jinoos/zoodis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
