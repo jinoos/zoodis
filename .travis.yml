@@ -2,5 +2,9 @@ language: c
 compiler:
   - clang
   - gcc
-install: apt-get install libzookeeper-mt-dev libzookeeper-mt2
-script: ./configure && make && make install
+install: 
+  - sudo apt-get install -qq libzookeeper-mt-dev libzookeeper-mt2
+script: 
+  - ./configure --prefix=~/zoodis
+  - make
+  - make install
