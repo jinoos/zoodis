@@ -17,7 +17,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `zookeeper_mt' library (-lzookeeper_mt). */
-/* #undef HAVE_LIBZOOKEEPER_MT */
+#define HAVE_LIBZOOKEEPER_MT 1
 
 /* Define to 1 if your system has a GNU libc compatible `malloc' function, and
    to 0 otherwise. */
@@ -78,7 +78,7 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Define to 1 if you have the <zookeeper/zookeeper.h> header file. */
-/* #undef HAVE_ZOOKEEPER_ZOOKEEPER_H */
+#define HAVE_ZOOKEEPER_ZOOKEEPER_H 1
 
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
