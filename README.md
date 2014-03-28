@@ -1,3 +1,7 @@
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/jinoos/zoodis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+[![Build Status](https://travis-ci.org/jinoos/zoodis.svg?branch=master)](https://travis-ci.org/jinoos/zoodis)
+
 # Zoodis
 
 `Zoo`keeper + Re`dis`
@@ -77,7 +81,4 @@ Zoodis watchs Redis two ways, PID monitoring and [PING](http://redis.io/commands
 
 Please use `--help`, and see other options.
 
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/jinoos/zoodis/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-[![Build Status](https://travis-ci.org/jinoos/zoodis.svg?branch=master)](https://travis-ci.org/jinoos/zoodis)
 
