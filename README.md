@@ -9,6 +9,10 @@ Watchdog for Redis server and tracing stats on Zookeeper with ephemeral node.
 ### Dependency
 
 - Zookeeper library multi-threaded version.
+
+Ubuntu
+    ]$ sudo apt-get install libzookeeper-mt-dev libzookeeper-mt2
+
 - Redis : http://redis.io/download
 
 Simple installation with git repository
