@@ -9,5 +9,8 @@ script:
   - make
 notifications:
   email:
-    - jinoos@gmail.com
-    - jinoos@11st.co.kr
+    recipients:
+      - jinoos@gmail.com
+      - jinoos@11st.co.kr
+    on_success: never
+    on_failure: always
