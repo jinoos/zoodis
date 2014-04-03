@@ -1,5 +1,7 @@
-#                                               -*- Autoconf -*-
-# Process this file with autoconf to produce a configure script.
+m4_define([VER_MAJOR], 0)
+m4_define([VER_MINOR], 1)
+m4_define([VER_PATCH], 0)
+m4_define([VER_BUGS], [jinoos@gmail.com])
 
 AC_PREREQ([2.68])
 AC_INIT([zoodis], [0.1], [jinoos@gmail.com])
@@ -9,6 +11,13 @@ AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_PROG_LIBTOOL
+
+AC_DEFINE(ZOODIS_VERSION_MAJOR, VER_MAJOR, [Define the major version number])
+AC_DEFINE(ZOODIS_VERSION_MINOR, VER_MINOR, [Define the minor version number])
+AC_DEFINE(ZOODIS_VERSION_PATCH, VER_PATCH, [Define the patch version number])
+AC_DEFINE(ZOODIS_VERSION_STRING, "VER_MAJOR.VER_MINOR.VER_PATCH", [Define the version string])
+
+AC_LANG([C])
 
 # Checks for programs.
 #AC_PROG_CC

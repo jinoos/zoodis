@@ -10,7 +10,8 @@
 #include <fcntl.h>
 
 #include "zoodis.h"
-#include "version.h"
+//#include "version.h"
+#include "config.h"
 #include "utime.h"
 
 static struct zoodis zoodis;
@@ -692,7 +693,7 @@ int check_zoo_options(struct zoodis *zoodis)
 
 void print_version(char **argv)
 {
-    printf("Zoodis %d.%d.%d\n", _VER_MAJOR, _VER_MINOR, _VER_PATCH);
+    printf("Zoodis ver %s\n", ZOODIS_VERSION_STRING);
     exit(0);
 }
 
