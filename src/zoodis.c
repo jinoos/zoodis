@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
     signal(SIGHUP, signal_sigint);
 
     log_level(_LOG_DEBUG);
-    log_msg("Start zoodis.");
 
     zoodis.keepalive_interval           = DEFAULT_KEEPALIVE_INTERVAL;
 
@@ -55,6 +54,7 @@ int main(int argc, char *argv[])
         {"redis-conf",          required_argument,  0,  'c'},
         {"redis-port",          required_argument,  0,  'r'},
         {"redis-ping-interval", required_argument,  0,  's'},
+        {"redis-max-fail-count",required_argument,  0,  'm'},
         {"zoo-host",            required_argument,  0,  'z'},
         {"zoo-path",            required_argument,  0,  'p'},
         {"zoo-nodename",        required_argument,  0,  'n'},
@@ -121,6 +121,10 @@ int main(int argc, char *argv[])
                 zoodis.redis_ping_interval = check_option_int(optarg, DEFAULT_REDIS_PING_INTERVAL);
                 break;
 
+            case 'm':
+                zoodis.redis_max_fail_count = check_option_int(optarg, DEFAULT_REDIS_MAX_FAIL_COUNT);
+                break;
+
             case 'z':
                 zoodis.zoo_host = check_zoo_host(optarg);
                 break;
@@ -146,6 +150,7 @@ int main(int argc, char *argv[])
         }
     }
 
+
     zoodis.zookeeper = check_zoo_options(&zoodis);
 
     if(zoodis.zoo_nodedata == NULL)
@@ -165,13 +170,7 @@ int main(int argc, char *argv[])
         }
     }
 
-//    sleep(1);
-//    while(zoodis.zoo_stat != ZOO_STAT_CONNECTED)
-//    if(zoodis.zoo_stat != ZOO_STAT_CONNECTED)
-//    {
-//        log_warn("Zookeeper: is not connected yet.");
-//        sleep(zoodis.zoo_connect_wait_interval);
-//    }
+    log_msg("Start zoodis.");
 
     exec_redis();
     redis_health();
@@ -701,7 +700,7 @@ void print_version(char **argv)
 void print_help(char **argv)
 {
     printf("\n");
-    printf("Usage: %s [Options] --redis-bin=REDIS_SERVER_PATH --redis-conf=REDIS_CONF_PATH --redis-port=PORT\n", argv[0]);
+    printf("Usage: %s --redis-bin=REDIS_SERVER_PATH --redis-conf=REDIS_CONF_PATH --redis-port=PORT [Options]\n", argv[0]);
     printf("\n");
     printf("    --redis-bin=PATH\n");
     printf("                    Path of redis-server daemon.\n");
@@ -719,6 +718,8 @@ void print_help(char **argv)
     printf("                    This option works with keepalive option.\n");
     printf("    --redis-ping-interval=SECONDS\n");
     printf("                    Interval seconds while ping(health) check.\n");
+    printf("    --redis-max-fail-count=COUNT\n");
+    printf("                    Threshold for judging redis failure.\n");
     printf("    --zoo-host=ZOOKEEPERHOSTS\n");
     printf("                    Connection string for zookeeper server.\n");
     printf("    --zoo-path=NODEPATH\n");
@@ -780,11 +781,12 @@ void redis_kill()
         log_info("Redis: killing daemon. PID:%d", zoodis.redis_pid);
         kill(zoodis.redis_pid, SIGTERM);
         zoodis.redis_stat = REDIS_STAT_KILLING;
-        int stat, pid;
+        int stat;
+        pid_t pid;
         pid = waitpid(zoodis.redis_pid, &stat, WNOHANG);
         zoodis.redis_stat = REDIS_STAT_NONE;
         zu_ephemeral_update(&zoodis);
-        log_info("Redis: down.");
+        log_info("Redis: down (pid:%d).", pid);
         zoodis.redis_pid = 0;
         signal(SIGCHLD, signal_sigchld);
     }
