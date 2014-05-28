@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
     zoodis.zoo_connect_wait_interval    = DEFAULT_ZOO_CONNECT_WAIT_INTERVAL;
 
     zoodis.redis_port                   = DEFAULT_REDIS_PORT;
+    zoodis.redis_ip                     = mstr_alloc_dup(DEFAULT_REDIS_IP, strlen(DEFAULT_REDIS_IP));
     zoodis.redis_ping_interval          = DEFAULT_REDIS_PING_INTERVAL;
     zoodis.redis_pong_timeout_sec       = DEFAULT_REDIS_PONG_TIMEOUT_SEC;
     zoodis.redis_pong_timeout_usec      = DEFAULT_REDIS_PONG_TIMEOUT_USEC;
@@ -52,6 +53,7 @@ int main(int argc, char *argv[])
         {"keepalive-interval",  required_argument,  0,  'i'},
         {"redis-bin",           required_argument,  0,  'b'},
         {"redis-conf",          required_argument,  0,  'c'},
+        {"redis-ip",            required_argument,  0,  'I'},
         {"redis-port",          required_argument,  0,  'r'},
         {"redis-ping-interval", required_argument,  0,  's'},
         {"redis-max-fail-count",required_argument,  0,  'm'},
@@ -115,6 +117,10 @@ int main(int argc, char *argv[])
 
             case 'r':
                 zoodis.redis_port = check_option_int(optarg, DEFAULT_REDIS_PORT);
+                break;
+
+            case 'I':
+                zoodis.redis_ip = mstr_alloc_dup(optarg, strlen(optarg));
                 break;
 
             case 's':
@@ -617,7 +623,7 @@ int check_redis_options(struct zoodis *zoodis)
 
     zoodis->redis_addr.sin_family = AF_INET;
     zoodis->redis_addr.sin_port = htons(zoodis->redis_port);
-    zoodis->redis_addr.sin_addr.s_addr= inet_addr(DEFAULT_REDIS_IP);
+    zoodis->redis_addr.sin_addr.s_addr = inet_addr(zoodis->redis_ip->data);
 
     return 1;
 }

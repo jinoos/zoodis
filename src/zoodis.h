@@ -68,6 +68,7 @@ struct zoodis
 
     int redis_sock;
     int redis_port;
+    struct mstr *redis_ip;
     struct sockaddr_in redis_addr;
     struct mstr *redis_bin;
     struct mstr *redis_conf;

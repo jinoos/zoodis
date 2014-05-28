@@ -118,6 +118,18 @@
 /* Version number of package */
 #define VERSION "0.1"
 
+/* Define the major version number */
+#define ZOODIS_VERSION_MAJOR 0
+
+/* Define the minor version number */
+#define ZOODIS_VERSION_MINOR 1
+
+/* Define the patch version number */
+#define ZOODIS_VERSION_PATCH 0
+
+/* Define the version string */
+#define ZOODIS_VERSION_STRING "0.1.0"
+
 /* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */

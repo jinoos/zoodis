@@ -11382,6 +11382,26 @@ CC="$lt_save_CC"
 
 
 
+
+$as_echo "#define ZOODIS_VERSION_MAJOR 0" >>confdefs.h
+
+
+$as_echo "#define ZOODIS_VERSION_MINOR 1" >>confdefs.h
+
+
+$as_echo "#define ZOODIS_VERSION_PATCH 0" >>confdefs.h
+
+
+$as_echo "#define ZOODIS_VERSION_STRING \"0.1.0\"" >>confdefs.h
+
+
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+
 # Checks for programs.
 #AC_PROG_CC
 if test "x$CC" != xcc; then
